@@ -3,6 +3,7 @@
 from bond import Bond
 from calculator import calculate_ytm, calculate_duration, calculate_convexity
 from portfolio import BondPortfolio
+from live_data import fetch_bond_data  # NEW
 
 
 def main():
@@ -13,19 +14,93 @@ def main():
     for i in range(num_bonds):
         print(f"\n--- Enter details for Bond {i+1} ---")
 
-        face_value = float(input("Enter face value of the bond: "))
-        coupon_rate = float(
-            input("Enter annual coupon rate (as decimal, e.g., 0.05 for 5%): ")
-        )
-        total_maturity = float(
-            input("Enter total original maturity of the bond (years): ")
-        )
-        remaining_years = float(input("Enter years remaining to maturity: "))
-        clean_price = float(input("Enter current clean price of the bond: "))
-        payment_frequency = int(
-            input("Enter payment frequency (e.g., 2 for semi-annual): ")
-        )
-        days_since_last_coupon = float(input("Enter days since last coupon payment: "))
+        # Live data or manual?
+        print("\nDo you want to fetch bond details from live market data?")
+        print("1 = Yes (fetch live)")
+        print("2 = No (manual input)")
+        live_choice = input("Enter choice (1 or 2, default 2): ") or "2"
+
+        if live_choice == "1":
+            symbol = input("Enter bond symbol (e.g., SHY, TLT): ").upper()
+            live_data = fetch_bond_data(symbol)
+
+            if live_data["success"]:
+                print(f"\nFetched data for {symbol}:")
+                print(f"Price: {live_data['price']}")
+                print(f"Approx Yield: {live_data['yield_estimate']}")
+                print(f"Maturity (if available): {live_data['maturity_date']}")
+
+                face_value = float(input("Enter face value of the bond: "))
+                clean_price = (
+                    float(live_data["price"])
+                    if live_data["price"]
+                    else float(input("Enter clean price manually: "))
+                )
+                coupon_rate = (
+                    float(live_data["yield_estimate"])
+                    if live_data["yield_estimate"]
+                    else float(input("Enter coupon rate manually (as decimal): "))
+                )
+                bond_type = "fixed"  # assume fixed for now when pulling ETF proxy
+                market_reference_rate = 0.0
+                quoted_spread = 0.0
+
+                total_maturity = float(
+                    input("Enter total original maturity of the bond (years): ")
+                )
+                remaining_years = float(input("Enter years remaining to maturity: "))
+                payment_frequency = int(
+                    input("Enter payment frequency (e.g., 2 for semi-annual): ")
+                )
+                days_since_last_coupon = float(
+                    input("Enter days since last coupon payment: ")
+                )
+
+            else:
+                print("Failed to fetch live data. Proceeding manually.")
+                live_choice = "2"  # fallback to manual
+
+        if live_choice == "2":
+            face_value = float(input("Enter face value of the bond: "))
+
+            # Bond Type
+            print("\nChoose Bond Type:")
+            print("1 = Fixed Rate Bond")
+            print("2 = Floating Rate Bond")
+            bond_type_choice = input("Enter choice (1 or 2, default 1): ") or "1"
+
+            if bond_type_choice == "2":
+                bond_type = "floating"
+                market_reference_rate = float(
+                    input(
+                        "Enter Market Reference Rate (as decimal, e.g., 0.03 for 3%): "
+                    )
+                )
+                quoted_spread = float(
+                    input("Enter Quoted Spread (as decimal, e.g., 0.01 for 100bps): ")
+                )
+                coupon_rate = 0.0
+            else:
+                bond_type = "fixed"
+                coupon_rate = float(
+                    input(
+                        "Enter annual fixed coupon rate (as decimal, e.g., 0.05 for 5%): "
+                    )
+                )
+                market_reference_rate = 0.0
+                quoted_spread = 0.0
+
+            total_maturity = float(
+                input("Enter total original maturity of the bond (years): ")
+            )
+            remaining_years = float(input("Enter years remaining to maturity: "))
+            clean_price = float(input("Enter current clean price of the bond: "))
+            payment_frequency = int(
+                input("Enter payment frequency (e.g., 2 for semi-annual): ")
+            )
+            days_since_last_coupon = float(
+                input("Enter days since last coupon payment: ")
+            )
 
         # Buyer or Seller
         print("\nAre you:")
@@ -63,6 +138,9 @@ def main():
             days_since_last_coupon=days_since_last_coupon,
             buyer_or_seller=buyer_or_seller,
             day_count_convention=day_count_convention,
+            bond_type=bond_type,
+            market_reference_rate=market_reference_rate,
+            quoted_spread=quoted_spread,
         )
 
         ytm = calculate_ytm(bond)
