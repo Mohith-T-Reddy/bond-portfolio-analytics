@@ -3,11 +3,26 @@
 from bond import Bond
 from calculator import calculate_ytm, calculate_duration, calculate_convexity
 from portfolio import BondPortfolio
-from live_data import fetch_bond_data  # NEW
+from live_data import fetch_bond_data
+from fred_fetch import fetch_yield_curve
 
 
 def main():
     portfolio = BondPortfolio()
+
+    # ---- Live Yield Curve Printout ----
+    try:
+        yield_curve = fetch_yield_curve()
+        print("\n🌟 Live U.S. Treasury Yield Curve 🌟")
+        print("---------------------------------------")
+        for maturity, yield_value in yield_curve.items():
+            if yield_value is not None:
+                print(f"{maturity}: {yield_value:.2f}%")
+            else:
+                print(f"{maturity}: Data Unavailable")
+        print("---------------------------------------\n")
+    except Exception as e:
+        print("⚠️ Warning: Unable to fetch live U.S. Treasury Yield Curve.\n")
 
     num_bonds = int(input("How many bonds do you want to add to the portfolio? "))
 

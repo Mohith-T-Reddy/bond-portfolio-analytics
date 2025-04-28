@@ -1,10 +1,12 @@
 # app.py
 
 import streamlit as st
+import matplotlib.pyplot as plt
 from bond import Bond
 from calculator import calculate_ytm, calculate_duration, calculate_convexity
 from portfolio import BondPortfolio
 from live_data import fetch_bond_data
+from fred_fetch import fetch_yield_curve, fetch_rate
 
 
 def main():
@@ -48,6 +50,75 @@ def main():
     """,
         unsafe_allow_html=True,
     )
+
+    # ---- Live Market Section (10Y Rate + Yield Curve together) ----
+    try:
+        ten_year_yield_series = fetch_rate("DGS10")
+        latest_yield = ten_year_yield_series.iloc[-1]
+
+        yield_curve = fetch_yield_curve()
+
+        st.markdown("### Live Market Data")
+
+        col1, col2 = st.columns([1, 5])  # slightly wider for the chart
+
+        with col1:
+            st.metric(label="10-Year US Treasury Yield", value=f"{latest_yield:.2f}%")
+
+        with col2:
+            if yield_curve:
+                maturities = list(yield_curve.keys())
+                yields = list(yield_curve.values())
+
+                plt.style.use("dark_background")
+
+                fig, ax = plt.subplots(figsize=(10, 1.8))  # ~2 inches high
+
+                ax.plot(
+                    maturities,
+                    yields,
+                    marker="o",
+                    linestyle="-",
+                    linewidth=2,
+                    color="deepskyblue",
+                )
+
+                for i, txt in enumerate(yields):
+                    ax.annotate(
+                        f"{txt:.2f}%",
+                        (maturities[i], yields[i]),
+                        textcoords="offset points",
+                        xytext=(0, 8),
+                        ha="center",
+                        fontsize=9,
+                        fontweight="bold",
+                        color="white",
+                    )
+
+                ax.set_xlabel("")
+                ax.set_ylabel("")
+                ax.set_title("", fontsize=11, color="white")
+                ax.grid(True, which="major", linestyle="--", linewidth=0.3, alpha=0.4)
+
+                buffer = 0.15  # even tighter margins
+                ax.set_ylim(min(yields) - buffer, max(yields) + buffer)
+
+                plt.xticks(rotation=0, color="white", fontsize=9)
+                plt.yticks([], [])  # Hide Y-axis ticks completely
+
+                for spine in ax.spines.values():
+                    spine.set_visible(False)  # Remove border boxes
+
+                st.pyplot(fig)
+
+            else:
+                st.warning("Unable to fetch yield curve data.")
+
+        st.markdown("---")
+
+    except Exception as e:
+        st.warning("Unable to fetch live market data.")
+        st.markdown("---")
 
     # ---- Dashboard Title and Intro ----
     st.subheader("Bond Portfolio Analytics Dashboard")
