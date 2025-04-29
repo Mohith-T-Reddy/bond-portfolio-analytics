@@ -60,41 +60,93 @@ def main():
         spread = latest_10y - latest_2y
         yc = fetch_yield_curve()
 
+        # Inside the Live Market Data try block, replace the plotting section with:
         st.markdown("## Live Market Data")
         c1, c2, c3 = st.columns(3)
         c1.metric("10Y Treasury Yield", f"{latest_10y:.2f}%")
         c2.metric(f"Yield Change (vs {prev_day})", f"{change:+.2f} bps")
         c3.metric("2Y–10Y Spread", f"{spread:.2f} bps")
 
-        fig, ax = plt.subplots(figsize=(9, 1.5))
-        plt.style.use("dark_background")
+        # Create a figure with a modern dark gradient background
+        fig = plt.figure(
+            figsize=(9, 2), facecolor="#1a1a1a"
+        )  # Very dark gray background
+        ax = fig.add_subplot(111, facecolor="#1a1a1a")
+        plt.style.use("dark_background")  # Ensure dark theme consistency
+
         if yc:
             maturities = list(yc.keys())
             yields = list(yc.values())
+
+            # Minimal grid: only vertical lines, very subtle
             ax.grid(
-                which="major", linestyle="--", linewidth=0.4, alpha=0.3, color="white"
+                which="major",
+                axis="x",
+                linestyle="--",
+                linewidth=0.3,
+                alpha=0.2,
+                color="#ffffff",
             )
-            ax.spines[["top", "right"]].set_visible(False)
-            ax.spines[["bottom", "left"]].set_visible(True)
-            ax.plot(maturities, yields, marker="o", color="#66ffff", linewidth=2)
-            ax.fill_between(
-                maturities, yields, min(yields) - 0.1, color="#66ffff", alpha=0.1
+
+            # Hide unnecessary spines for a cleaner look
+            ax.spines[["top", "right", "left"]].set_visible(False)
+            ax.spines["bottom"].set_color("#ffffff")
+            ax.spines["bottom"].set_alpha(0.3)
+
+            # Plot the yield curve with a classy, muted gold color and glow effect
+            ax.plot(
+                maturities,
+                yields,
+                marker="o",
+                color="#d4af37",
+                linewidth=1.5,
+                markersize=5,
+                markeredgecolor="#d4af37",
+                markeredgewidth=0.5,
+                zorder=3,
             )
+
+            # Add yield labels above points with a modern font
             for m, y in zip(maturities, yields):
                 ax.text(
                     m,
-                    y + 0.03,
+                    y + 0.05,
                     f"{y:.2f}%",
                     ha="center",
                     va="bottom",
-                    color="white",
+                    color="#ffffff",
                     fontsize=8,
+                    fontfamily="sans-serif",
+                    fontweight="light",
                 )
+
+            # Customize axes for a minimalistic look
             ax.set_xticks(maturities)
-            ax.set_xticklabels(maturities, rotation=0, color="white", fontsize=9)
-            ax.set_yticks([])
-            ax.set_xlabel("Maturity", color="white", fontsize=10)
-            ax.set_ylabel("Yield (%)", color="white", fontsize=10)
+            ax.set_xticklabels(
+                maturities,
+                color="#ffffff",
+                fontsize=9,
+                fontfamily="sans-serif",
+                fontweight="light",
+            )
+            ax.set_yticks([])  # Hide y-axis ticks as before
+            ax.set_xlabel(
+                "Maturity",
+                color="#ffffff",
+                fontsize=10,
+                fontfamily="sans-serif",
+                fontweight="light",
+            )
+            ax.set_ylabel(
+                "Yield (%)",
+                color="#ffffff",
+                fontsize=10,
+                fontfamily="sans-serif",
+                fontweight="light",
+            )
+
+        # Adjust layout for better spacing
+        fig.tight_layout()
         st.pyplot(fig, clear_figure=True)
         st.caption(f"Last Updated: {datetime.now():%Y-%m-%d %H:%M:%S}")
         st.markdown("---")
