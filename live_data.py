@@ -11,9 +11,7 @@ def fetch_bond_data(symbol):
 
         price = info.get("regularMarketPrice")
         yield_estimate = info.get("yield")  # dividend yield estimate
-        maturity_date = info.get(
-            "bondMaturityDate", "Unknown"
-        )  # rarely available for ETFs
+        maturity_date = info.get("bondMaturityDate", "Unknown")
 
         return {
             "price": price,

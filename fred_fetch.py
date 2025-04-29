@@ -46,7 +46,6 @@ def fetch_yield_curve():
             rates[label] = ser.iloc[-1]
         except Exception:
             rates[label] = None
-    # Drop any None values so Streamlit chart doesn’t break
     return {k: v for k, v in rates.items() if v is not None}
 
 

@@ -17,8 +17,6 @@ from fred_fetch import fetch_rate, fetch_yield_curve
 
 def main():
     st.set_page_config(page_title="Bond Portfolio Analytics", layout="wide")
-
-    # ---- CUSTOM CSS for clean, compact layout ----
     st.markdown(
         """
         <style>
@@ -60,25 +58,20 @@ def main():
         spread = latest_10y - latest_2y
         yc = fetch_yield_curve()
 
-        # Inside the Live Market Data try block, replace the plotting section with:
         st.markdown("## Live Market Data")
         c1, c2, c3 = st.columns(3)
         c1.metric("10Y Treasury Yield", f"{latest_10y:.2f}%")
         c2.metric(f"Yield Change (vs {prev_day})", f"{change:+.2f} bps")
         c3.metric("2Y–10Y Spread", f"{spread:.2f} bps")
 
-        # Create a figure with a modern dark gradient background
-        fig = plt.figure(
-            figsize=(9, 2), facecolor="#1a1a1a"
-        )  # Very dark gray background
+        fig = plt.figure(figsize=(9, 2), facecolor="#1a1a1a")
         ax = fig.add_subplot(111, facecolor="#1a1a1a")
-        plt.style.use("dark_background")  # Ensure dark theme consistency
+        plt.style.use("dark_background")
 
         if yc:
             maturities = list(yc.keys())
             yields = list(yc.values())
 
-            # Minimal grid: only vertical lines, very subtle
             ax.grid(
                 which="major",
                 axis="x",
@@ -88,12 +81,10 @@ def main():
                 color="#ffffff",
             )
 
-            # Hide unnecessary spines for a cleaner look
             ax.spines[["top", "right", "left"]].set_visible(False)
             ax.spines["bottom"].set_color("#ffffff")
             ax.spines["bottom"].set_alpha(0.3)
 
-            # Plot the yield curve with a classy, muted gold color and glow effect
             ax.plot(
                 maturities,
                 yields,
@@ -106,7 +97,6 @@ def main():
                 zorder=3,
             )
 
-            # Add yield labels above points with a modern font
             for m, y in zip(maturities, yields):
                 ax.text(
                     m,
@@ -120,7 +110,6 @@ def main():
                     fontweight="light",
                 )
 
-            # Customize axes for a minimalistic look
             ax.set_xticks(maturities)
             ax.set_xticklabels(
                 maturities,
@@ -129,7 +118,7 @@ def main():
                 fontfamily="sans-serif",
                 fontweight="light",
             )
-            ax.set_yticks([])  # Hide y-axis ticks as before
+            ax.set_yticks([])
             ax.set_xlabel(
                 "Maturity",
                 color="#ffffff",
@@ -145,7 +134,6 @@ def main():
                 fontweight="light",
             )
 
-        # Adjust layout for better spacing
         fig.tight_layout()
         st.pyplot(fig, clear_figure=True)
         st.caption(f"Last Updated: {datetime.now():%Y-%m-%d %H:%M:%S}")
@@ -158,7 +146,6 @@ def main():
     st.subheader("Bond Portfolio Analytics")
     portfolio = BondPortfolio()
 
-    # Default templates with distinct values
     templates = [
         {
             "fv": 1000.0,

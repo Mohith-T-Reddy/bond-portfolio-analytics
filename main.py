@@ -13,7 +13,7 @@ def main():
     # ---- Live Yield Curve Printout ----
     try:
         yield_curve = fetch_yield_curve()
-        print("\n🌟 Live U.S. Treasury Yield Curve 🌟")
+        print("\nLive U.S. Treasury Yield Curve")
         print("---------------------------------------")
         for maturity, yield_value in yield_curve.items():
             if yield_value is not None:
@@ -22,7 +22,7 @@ def main():
                 print(f"{maturity}: Data Unavailable")
         print("---------------------------------------\n")
     except Exception as e:
-        print("⚠️ Warning: Unable to fetch live U.S. Treasury Yield Curve.\n")
+        print("Warning: Unable to fetch live U.S. Treasury Yield Curve.\n")
 
     num_bonds = int(input("How many bonds do you want to add to the portfolio? "))
 
@@ -56,7 +56,7 @@ def main():
                     if live_data["yield_estimate"]
                     else float(input("Enter coupon rate manually (as decimal): "))
                 )
-                bond_type = "fixed"  # assume fixed for now when pulling ETF proxy
+                bond_type = "fixed"
                 market_reference_rate = 0.0
                 quoted_spread = 0.0
 
