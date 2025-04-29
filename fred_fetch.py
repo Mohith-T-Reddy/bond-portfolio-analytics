@@ -12,7 +12,7 @@ def get_fred_connection():
 
     # If not found, fallback to hardcoded (for local testing)
     if not api_key:
-        api_key = "30d8c514f7a153dff912ce2c41639b79"
+        api_key = "dummy"
 
     return Fred(api_key=api_key)
 
