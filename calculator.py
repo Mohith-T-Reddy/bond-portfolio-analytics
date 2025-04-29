@@ -1,11 +1,28 @@
 # calculator.py
+from bond import Bond
 
 
-def calculate_ytm(bond, tol=1e-6, max_iter=1000, high_ytm_threshold=0.5):
+def price_from_ytm(bond: Bond, ytm: float) -> float:
     """
-    Calculate bond's Yield to Maturity using Newton-Raphson with Bisection fallback if needed.
+    Compute the theoretical clean price of `bond` given an annualized yield-to-maturity.
     """
+    freq = bond.payment_frequency
+    coupon = bond.get_coupon_payment()
+    periods = int(bond.get_number_of_payments())
+    ytm_p = ytm / freq
+    pv = 0.0
+    discount = 1.0 / (1 + ytm_p)
+    for t in range(periods):
+        pv += coupon * (discount ** (t + 1))
+    pv += bond.face_value * (discount**periods)
+    return pv
 
+
+def calculate_ytm(bond: Bond, tol=1e-6, max_iter=1000, high_ytm_threshold=0.5) -> float:
+    """
+    Calculate bond's Yield to Maturity using Newton-Raphson and Bisection fallback.
+    Returns an annualized YTM.
+    """
     price = bond.price
     face_value = bond.face_value
     coupon = bond.get_coupon_payment()
@@ -13,121 +30,113 @@ def calculate_ytm(bond, tol=1e-6, max_iter=1000, high_ytm_threshold=0.5):
     freq = bond.payment_frequency
     years_remaining = bond.remaining_years
 
-    # Smart starting guess
+    # Smart initial guess
     approx_ytm = (coupon * freq + (face_value - price) / years_remaining) / (
         (face_value + price) / 2
     )
-    ytm = approx_ytm
+    ytm = max(approx_ytm, 0.0001)  # Ensure positive initial guess
 
-    # Helper to calculate bond price for a given ytm
-    def bond_price(ytm_guess):
-        bond_pv = 0
-        for t in range(1, int(periods) + 1):
-            cash_flow = coupon
-            if t == int(periods):
-                cash_flow += face_value
-            bond_pv += cash_flow / (1 + ytm_guess / freq) ** t
-        return bond_pv
+    # Newton-Raphson iteration
+    for _ in range(max_iter):
+        calc_price = price_from_ytm(bond, ytm)
+        diff = price - calc_price
+        if abs(diff) < tol:
+            periodic = ytm
+            return (1 + periodic / freq) ** freq - 1
+        delta = 1e-6
+        derivative = (price_from_ytm(bond, ytm + delta) - calc_price) / delta
+        if derivative == 0:  # Avoid division by zero
+            break
+        ytm += diff / derivative
+        if ytm <= 0 or ytm > high_ytm_threshold:  # Early exit for unreasonable values
+            break
 
-    # Try Newton-Raphson
-    try:
-        for _ in range(max_iter):
-            calculated_price = bond_price(ytm)
-
-            # Approximate derivative numerically
-            delta = 1e-6
-            price_up = bond_price(ytm + delta)
-            derivative = (price_up - calculated_price) / delta
-
-            diff = price - calculated_price
-
-            if abs(diff) < tol:
-                periodic_ytm = ytm
-                annualized_ytm = (1 + periodic_ytm / freq) ** freq - 1
-                if annualized_ytm > high_ytm_threshold:
-                    print(
-                        "High YTM detected from Newton-Raphson. Recalculating using Bisection method..."
-                    )
-                    break
-                return annualized_ytm
-
-            ytm = ytm + diff / derivative
-
-    except Exception:
-        print("Newton-Raphson failed. Falling back to Bisection method.")
-
-    # Now fallback to Bisection method
-    low = 0.0001
-    high = 1.0
-
+    # Bisection fallback
+    low, high = 0.0001, min(high_ytm_threshold, 1.0)
     for _ in range(200):
         mid = (low + high) / 2
-        mid_price = bond_price(mid)
-
+        mid_price = price_from_ytm(bond, mid)
         if abs(mid_price - price) < tol:
-            periodic_ytm = mid
-            annualized_ytm = (1 + periodic_ytm / freq) ** freq - 1
-            return annualized_ytm
-
+            periodic = mid
+            return (1 + periodic / freq) ** freq - 1
         if mid_price > price:
             low = mid
         else:
             high = mid
 
-    # After max bisection iterations
-    periodic_ytm = mid
-    annualized_ytm = (1 + periodic_ytm / freq) ** freq - 1
-    return annualized_ytm
+    periodic = (low + high) / 2
+    return (1 + periodic / freq) ** freq - 1
 
 
-def calculate_duration(bond, ytm):
+def calculate_duration(bond: Bond, ytm: float) -> float:
     """
-    Calculate the modified duration of the bond.
+    Modified duration = Macaulay duration / (1 + ytm_periodic).
     """
-
     price = bond.price
-    face_value = bond.face_value
     coupon = bond.get_coupon_payment()
-    periods = bond.get_number_of_payments()
+    periods = int(bond.get_number_of_payments())
     freq = bond.payment_frequency
-    ytm_periodic = ytm / freq
+    ytm_p = ytm / freq
+    discount = 1.0 / (1 + ytm_p)
 
-    macaulay_duration = 0
-    for t in range(1, int(periods) + 1):
-        time = t / freq  # time in years
-        cash_flow = coupon
-        if t == int(periods):
-            cash_flow += face_value
-        present_value = cash_flow / (1 + ytm_periodic) ** t
-        macaulay_duration += time * present_value
-
-    macaulay_duration = macaulay_duration / price
-    modified_duration = macaulay_duration / (1 + ytm_periodic)
-
-    return modified_duration
+    macaulay = 0.0
+    for t in range(periods):
+        time = (t + 1) / freq
+        pv = coupon * (discount ** (t + 1))
+        macaulay += time * pv
+    macaulay += (periods / freq) * bond.face_value * (discount**periods)
+    macaulay /= price
+    return macaulay / (1 + ytm_p)
 
 
-def calculate_convexity(bond, ytm):
+def calculate_convexity(bond: Bond, ytm: float) -> float:
     """
-    Calculate the modified convexity of the bond.
+    (Modified) convexity of the bond.
     """
-
     price = bond.price
-    face_value = bond.face_value
     coupon = bond.get_coupon_payment()
-    periods = bond.get_number_of_payments()
+    periods = int(bond.get_number_of_payments())
     freq = bond.payment_frequency
-    ytm_periodic = ytm / freq
+    ytm_p = ytm / freq
+    discount = 1.0 / (1 + ytm_p)
 
-    convexity = 0
-    for t in range(1, int(periods) + 1):
-        time = t / freq  # time in years
-        cash_flow = coupon
-        if t == int(periods):
-            cash_flow += face_value
-        present_value = cash_flow / (1 + ytm_periodic) ** t
-        convexity += time * (time + (1 / freq)) * present_value
+    conv = 0.0
+    for t in range(periods):
+        time = (t + 1) / freq
+        pv = coupon * (discount ** (t + 1))
+        conv += time * (time + 1 / freq) * pv
+    final_time = periods / freq
+    conv += final_time * (final_time + 1 / freq) * bond.face_value * (discount**periods)
+    return conv / (price * (1 + ytm_p) ** 2)
 
-    convexity = convexity / (price * (1 + ytm_periodic) ** 2)
 
-    return convexity
+def calculate_dv01(bond: Bond, ytm: float) -> float:
+    """
+    Dollar value of a 1bp move: DV01 = Modified Duration * Price * 1bp
+    """
+    md = calculate_duration(bond, ytm)
+    return md * bond.price * 0.0001
+
+
+def calculate_effective_duration(bond: Bond, ytm: float, shift_bps: float) -> float:
+    """
+    Effective duration: (P(-Δy) - P(+Δy)) / (2 * P0 * Δy)
+    shift_bps: in basis points; convert to decimal
+    """
+    shift = shift_bps / 10000
+    P0 = bond.price
+    P_plus = price_from_ytm(bond, ytm + shift)
+    P_minus = price_from_ytm(bond, ytm - shift)
+    return (P_minus - P_plus) / (2 * P0 * shift)
+
+
+def calculate_effective_convexity(bond: Bond, ytm: float, shift_bps: float) -> float:
+    """
+    Effective convexity: (P(+Δy) + P(-Δy) - 2P0) / (P0 * (Δy)^2)
+    shift_bps: in basis points; convert to decimal
+    """
+    shift = shift_bps / 10000
+    P0 = bond.price
+    P_plus = price_from_ytm(bond, ytm + shift)
+    P_minus = price_from_ytm(bond, ytm - shift)
+    return (P_plus + P_minus - 2 * P0) / (P0 * shift**2)
